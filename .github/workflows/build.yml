@@ -1,0 +1,812 @@
+# AirPods заряди — Android илова (Samsung ва бошқа Android телефонлар учун)
+# Бу файл GitHub'да илованинг APK файлини автоматик йиғиб беради.
+# GitHub'да файл номи АЙНАН шундай бўлиши керак:  .github/workflows/build.yml
+
+name: AirPods ilovasini yigish
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Ilova kodini yozish
+        run: |
+          mkdir -p app app/src/main app/src/main/java/uz/airpods/battery app/src/main/res/drawable app/src/main/res/mipmap-anydpi-v26
+
+          cat > settings.gradle <<'__EOF__'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = 'AirPodsBattery'
+          include ':app'
+          __EOF__
+
+          cat > build.gradle <<'__EOF__'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          __EOF__
+
+          cat > gradle.properties <<'__EOF__'
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          android.nonTransitiveRClass=true
+          __EOF__
+
+          cat > app/build.gradle <<'__EOF__'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'uz.airpods.battery'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'uz.airpods.battery'
+                  minSdk 26
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      // Ўзингиз ўрнатасиз — шунинг учун debug калити билан имзолаймиз.
+                      signingConfig signingConfigs.debug
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+
+              lint {
+                  abortOnError false
+                  checkReleaseBuilds false
+              }
+          }
+          __EOF__
+
+          cat > app/src/main/AndroidManifest.xml <<'__EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <!-- Android 11 ва эскироқ -->
+              <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+              <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+              <!-- Android 12+ : яқин атрофдаги қурилмаларни қидириш -->
+              <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+              <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+              <!-- Android Bluetooth LE қидирув учун жойлашув рухсатини сўрайди -->
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+              <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+
+              <application
+                  android:allowBackup="false"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="AirPods заряди"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          __EOF__
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'__EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          __EOF__
+
+          cat > app/src/main/res/drawable/ic_launcher_background.xml <<'__EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="#0A84FF" />
+          </shape>
+          __EOF__
+
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml <<'__EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <!-- Икки қулоқчин ва ўртада заряд белгиси (108x108, хавфсиз зона ўртадаги 66x66) -->
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <!-- чап қулоқчин -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M34,36 a8,8 0 1,1 16,0 v6 a8,8 0 0,1 -5,7.4 V70 a3,3 0 0,1 -6,0 V49.4 A8,8 0 0,1 34,42 Z" />
+              <!-- ўнг қулоқчин -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M58,36 a8,8 0 1,1 16,0 v6 a8,8 0 0,1 -5,7.4 V70 a3,3 0 0,1 -6,0 V49.4 A8,8 0 0,1 58,42 Z" />
+              <!-- яшил заряд нуқтаси -->
+              <path
+                  android:fillColor="#34C759"
+                  android:pathData="M54,74 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+          </vector>
+          __EOF__
+
+          cat > app/src/main/java/uz/airpods/battery/MainActivity.java <<'__EOF__'
+          package uz.airpods.battery;
+
+          import android.app.Activity;
+          import android.bluetooth.BluetoothAdapter;
+          import android.bluetooth.BluetoothManager;
+          import android.bluetooth.le.BluetoothLeScanner;
+          import android.bluetooth.le.ScanCallback;
+          import android.bluetooth.le.ScanFilter;
+          import android.bluetooth.le.ScanRecord;
+          import android.bluetooth.le.ScanResult;
+          import android.bluetooth.le.ScanSettings;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.content.res.ColorStateList;
+          import android.content.res.Configuration;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.location.LocationManager;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.os.SystemClock;
+          import android.provider.Settings;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.view.Window;
+          import android.view.WindowInsets;
+          import android.widget.Button;
+          import android.widget.LinearLayout;
+          import android.widget.ProgressBar;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.List;
+
+          /**
+           * AirPods заряди: чап ва ўнг қулоқчин ҳамда кейс зарядини кўрсатади.
+           *
+           * AirPods атрофга ҳар доим кичик Bluetooth LE хабар (Apple "proximity pairing")
+           * юбориб туради. Унинг ичида заряд 10% қадам билан ёзилган бўлади.
+           * Илова шу хабарни ушлаб, ўқиб, экранга чиқаради. Уланиш ёки интернет керак эмас.
+           */
+          public class MainActivity extends Activity {
+
+              private static final int APPLE_COMPANY_ID = 0x004C;
+              private static final int TYPE_PROXIMITY_PAIRING = 0x07;
+              private static final int REQ_PERMISSIONS = 42;
+
+              private static final long READING_WINDOW_MS = 8_000;   // энг кучли сигнални шу оралиқда танлаймиз
+              private static final long STALE_AFTER_MS = 15_000;     // шундан кейин маълумот эскирган ҳисобланади
+              private static final long FILTER_FALLBACK_MS = 12_000; // фильтр билан топилмаса, фильтрсиз қидирамиз
+              private static final int MIN_RSSI = -90;
+
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private final List<Reading> recent = new ArrayList<>();
+
+              private BluetoothAdapter adapter;
+              private BluetoothLeScanner scanner;
+              private boolean scanning;
+              private boolean useFilter = true;
+              private long scanStartedAt;
+              private long lastScanAttemptAt;
+              private boolean askedPermissionsOnce;
+              private boolean resumed;
+
+              private Reading current;
+
+              // UI
+              private boolean dark;
+              private int colorBg, colorCard, colorText, colorMuted, colorAccent;
+              private TextView statusView, hintView, modelView;
+              private Button actionButton;
+              private PodCard leftCard, rightCard, caseCard;
+
+              // ------------------------------------------------------------------ lifecycle
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  BluetoothManager bm = getSystemService(BluetoothManager.class);
+                  adapter = bm != null ? bm.getAdapter() : null;
+                  buildUi();
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  resumed = true;
+                  handler.post(ticker);
+              }
+
+              @Override
+              protected void onPause() {
+                  super.onPause();
+                  resumed = false;
+                  handler.removeCallbacks(ticker);
+                  stopScan();
+              }
+
+              private final Runnable ticker = new Runnable() {
+                  @Override
+                  public void run() {
+                      refresh();
+                      if (resumed) handler.postDelayed(this, 1000);
+                  }
+              };
+
+              @Override
+              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                  if (requestCode == REQ_PERMISSIONS) refresh();
+              }
+
+              // ------------------------------------------------------------------ main state machine
+
+              private void refresh() {
+                  if (adapter == null) {
+                      showProblem("Бу қурилмада Bluetooth топилмади.", null, null);
+                      return;
+                  }
+                  if (!hasScanPermissions()) {
+                      stopScan();
+                      showProblem("AirPods'ни топиш учун «Яқин атрофдаги қурилмалар» ва «Жойлашув» рухсати керак.",
+                              "Рухсат бериш", this::askPermissions);
+                      return;
+                  }
+                  boolean btOn;
+                  try {
+                      btOn = adapter.isEnabled();
+                  } catch (SecurityException e) {
+                      btOn = false;
+                  }
+                  if (!btOn) {
+                      scanning = false;
+                      scanner = null;
+                      showProblem("Bluetooth ўчирилган. Уни ёқинг.", "Bluetooth созламалари",
+                              () -> openSettings(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
+                      return;
+                  }
+
+                  long now = SystemClock.elapsedRealtime();
+                  if (!scanning && now - lastScanAttemptAt > 8000) startScan();
+
+                  // Фильтрли қидирув баъзи телефонларда ишламаслиги мумкин — унда фильтрсиз қайта бошлаймиз.
+                  if (scanning && useFilter && current == null && now - scanStartedAt > FILTER_FALLBACK_MS) {
+                      useFilter = false;
+                      stopScan();
+                      startScan();
+                  }
+
+                  boolean fresh = current != null && now - current.time < STALE_AFTER_MS;
+                  if (fresh) {
+                      showReading(current, now);
+                  } else {
+                      showSearching(now);
+                  }
+              }
+
+              private void showProblem(String message, String buttonText, Runnable action) {
+                  statusView.setText(message);
+                  modelView.setText("AirPods");
+                  hintView.setVisibility(View.GONE);
+                  setButton(buttonText, action);
+                  leftCard.setUnknown(colorMuted);
+                  rightCard.setUnknown(colorMuted);
+                  caseCard.setUnknown(colorMuted);
+              }
+
+              private void showSearching(long now) {
+                  modelView.setText("AirPods");
+                  statusView.setText(scanning ? "AirPods қидирилмоқда…" : "Қидирув бошланмоқда…");
+                  hintView.setVisibility(View.VISIBLE);
+                  hintView.setText("Кейс қопқоғини телефон ёнида очинг ёки қулоқчинларни тақинг.");
+                  leftCard.setUnknown(colorMuted);
+                  rightCard.setUnknown(colorMuted);
+                  caseCard.setUnknown(colorMuted);
+
+                  if (scanning && now - scanStartedAt > 10_000 && !isLocationEnabled()) {
+                      hintView.setText("Кейс қопқоғини телефон ёнида очинг.\n\nАгар топилмаса — телефонда «Жойлашув» (Location) ни ёқинг: "
+                              + "Android Bluetooth қидирув учун шуни талаб қилиши мумкин.");
+                      setButton("Жойлашувни ёқиш",
+                              () -> openSettings(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
+                  } else {
+                      setButton(null, null);
+                  }
+              }
+
+              private void showReading(Reading r, long now) {
+                  modelView.setText(modelName(r.model));
+                  long ago = Math.max(0, (now - r.time) / 1000);
+                  statusView.setText("Топилди · сигнал " + r.rssi + " dBm · " + (ago <= 1 ? "ҳозир" : ago + " с олдин"));
+                  hintView.setVisibility(View.GONE);
+                  setButton(null, null);
+
+                  leftCard.setValue(r.left, r.chargingLeft, false);
+                  rightCard.setValue(r.right, r.chargingRight, false);
+                  caseCard.setValue(r.caseBattery, r.chargingCase, true);
+              }
+
+              // ------------------------------------------------------------------ scanning
+
+              private void startScan() {
+                  lastScanAttemptAt = SystemClock.elapsedRealtime();
+                  try {
+                      scanner = adapter.getBluetoothLeScanner();
+                      if (scanner == null) return;
+
+                      List<ScanFilter> filters = null;
+                      if (useFilter) {
+                          filters = Collections.singletonList(new ScanFilter.Builder()
+                                  .setManufacturerData(APPLE_COMPANY_ID,
+                                          new byte[]{TYPE_PROXIMITY_PAIRING},
+                                          new byte[]{(byte) 0xFF})
+                                  .build());
+                      }
+                      ScanSettings settings = new ScanSettings.Builder()
+                              .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                              .build();
+                      scanner.startScan(filters, settings, scanCallback);
+                      scanning = true;
+                      scanStartedAt = SystemClock.elapsedRealtime();
+                  } catch (SecurityException | IllegalStateException e) {
+                      scanning = false;
+                  }
+              }
+
+              private void stopScan() {
+                  if (scanner != null && scanning) {
+                      try {
+                          scanner.stopScan(scanCallback);
+                      } catch (SecurityException | IllegalStateException ignored) {
+                      }
+                  }
+                  scanning = false;
+              }
+
+              private final ScanCallback scanCallback = new ScanCallback() {
+                  @Override
+                  public void onScanResult(int callbackType, ScanResult result) {
+                      onResult(result);
+                  }
+
+                  @Override
+                  public void onBatchScanResults(List<ScanResult> results) {
+                      for (ScanResult r : results) onResult(r);
+                  }
+
+                  @Override
+                  public void onScanFailed(int errorCode) {
+                      handler.post(() -> {
+                          scanning = false;
+                          statusView.setText("Bluetooth қидирувида хато (код " + errorCode + "). Қайта уриниляпти…");
+                      });
+                  }
+              };
+
+              private void onResult(ScanResult result) {
+                  ScanRecord record = result.getScanRecord();
+                  if (record == null) return;
+                  byte[] data = record.getManufacturerSpecificData(APPLE_COMPANY_ID);
+                  final Reading reading = Reading.parse(data, result.getRssi(), SystemClock.elapsedRealtime());
+                  if (reading == null || reading.rssi < MIN_RSSI) return;
+                  handler.post(() -> accept(reading));
+              }
+
+              /** Атрофда бир нечта AirPods бўлиши мумкин — охирги 8 сониядаги энг кучли (энг яқин) сигнални оламиз. */
+              private void accept(Reading reading) {
+                  recent.add(reading);
+                  long cutoff = reading.time - READING_WINDOW_MS;
+                  for (int i = recent.size() - 1; i >= 0; i--) {
+                      if (recent.get(i).time < cutoff) recent.remove(i);
+                  }
+                  Reading best = null;
+                  for (Reading r : recent) {
+                      if (best == null || r.rssi > best.rssi) best = r;
+                  }
+                  // Энг кучли қурилманинг энг янги ўқишини кўрсатамиз.
+                  if (best != null) {
+                      Reading newest = best;
+                      for (Reading r : recent) {
+                          if (r.model == best.model && Math.abs(r.rssi - best.rssi) <= 8 && r.time > newest.time) newest = r;
+                      }
+                      current = newest;
+                  }
+                  refresh();
+              }
+
+              // ------------------------------------------------------------------ permissions & settings
+
+              private String[] requiredPermissions() {
+                  if (Build.VERSION.SDK_INT >= 31) {
+                      return new String[]{
+                              "android.permission.BLUETOOTH_SCAN",
+                              "android.permission.BLUETOOTH_CONNECT",
+                              "android.permission.ACCESS_FINE_LOCATION",
+                              "android.permission.ACCESS_COARSE_LOCATION"};
+                  }
+                  return new String[]{
+                          "android.permission.ACCESS_FINE_LOCATION",
+                          "android.permission.ACCESS_COARSE_LOCATION"};
+              }
+
+              private boolean hasScanPermissions() {
+                  if (Build.VERSION.SDK_INT >= 31) {
+                      // Қидириш учун BLUETOOTH_SCAN шарт; жойлашув бўлмаса ҳам уриниб кўрамиз.
+                      return checkSelfPermission("android.permission.BLUETOOTH_SCAN") == PackageManager.PERMISSION_GRANTED;
+                  }
+                  return checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") == PackageManager.PERMISSION_GRANTED;
+              }
+
+              private void askPermissions() {
+                  boolean canAskAgain = !askedPermissionsOnce;
+                  for (String p : requiredPermissions()) {
+                      if (shouldShowRequestPermissionRationale(p)) canAskAgain = true;
+                  }
+                  if (canAskAgain) {
+                      askedPermissionsOnce = true;
+                      requestPermissions(requiredPermissions(), REQ_PERMISSIONS);
+                  } else {
+                      // Фойдаланувчи «бошқа сўрама» деган — илова созламаларини очамиз.
+                      openSettings(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                              Uri.fromParts("package", getPackageName(), null)));
+                  }
+              }
+
+              private boolean isLocationEnabled() {
+                  LocationManager lm = getSystemService(LocationManager.class);
+                  if (lm == null) return true;
+                  try {
+                      if (Build.VERSION.SDK_INT >= 28) return lm.isLocationEnabled();
+                      return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                              || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+                  } catch (RuntimeException e) {
+                      return true;
+                  }
+              }
+
+              private void openSettings(Intent intent) {
+                  try {
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                  } catch (RuntimeException e) {
+                      try {
+                          startActivity(new Intent(Settings.ACTION_SETTINGS));
+                      } catch (RuntimeException ignored) {
+                      }
+                  }
+              }
+
+              // ------------------------------------------------------------------ model names
+
+              private static String modelName(int model) {
+                  switch (model) {
+                      case 0x0220: return "AirPods (1-авлод)";
+                      case 0x0F20: return "AirPods (2-авлод)";
+                      case 0x1320: return "AirPods (3-авлод)";
+                      case 0x1920: return "AirPods 4";
+                      case 0x1B20: return "AirPods 4 (ANC)";
+                      case 0x0E20: return "AirPods Pro";
+                      case 0x1420: return "AirPods Pro 2";
+                      case 0x2420: return "AirPods Pro 2 (USB-C)";
+                      case 0x2720: return "AirPods Pro 3";
+                      case 0x0A20: return "AirPods Max";
+                      case 0x1F20: return "AirPods Max (USB-C)";
+                      default: return String.format("AirPods (модел 0x%04X)", model);
+                  }
+              }
+
+              // ------------------------------------------------------------------ UI
+
+              private int dp(float v) {
+                  return Math.round(v * getResources().getDisplayMetrics().density);
+              }
+
+              private void buildUi() {
+                  dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                          == Configuration.UI_MODE_NIGHT_YES;
+                  colorBg = dark ? 0xFF000000 : 0xFFF2F2F7;
+                  colorCard = dark ? 0xFF1C1C1E : 0xFFFFFFFF;
+                  colorText = dark ? 0xFFFFFFFF : 0xFF111111;
+                  colorMuted = dark ? 0xFF8E8E93 : 0xFF8A8A8E;
+                  colorAccent = 0xFF0A84FF;
+
+                  Window w = getWindow();
+                  w.setStatusBarColor(colorBg);
+                  w.setNavigationBarColor(colorBg);
+                  if (!dark) {
+                      w.getDecorView().setSystemUiVisibility(
+                              View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                  }
+
+                  ScrollView scroll = new ScrollView(this);
+                  scroll.setBackgroundColor(colorBg);
+                  scroll.setFillViewport(true);
+
+                  final LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  final int pad = dp(20);
+                  root.setPadding(pad, pad, pad, pad);
+                  scroll.addView(root, new ViewGroup.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                  // Экран четларидаги тизим панеллари (status bar, навигация) остида қолмаслик учун.
+                  scroll.setOnApplyWindowInsetsListener((v, insets) -> {
+                      int top;
+                      int bottom;
+                      if (Build.VERSION.SDK_INT >= 30) {
+                          android.graphics.Insets s = insets.getInsets(WindowInsets.Type.systemBars());
+                          top = s.top;
+                          bottom = s.bottom;
+                      } else {
+                          top = insets.getSystemWindowInsetTop();
+                          bottom = insets.getSystemWindowInsetBottom();
+                      }
+                      root.setPadding(pad, pad + top, pad, pad + bottom);
+                      return insets;
+                  });
+
+                  TextView title = new TextView(this);
+                  title.setText("AirPods заряди");
+                  title.setTextSize(30);
+                  title.setTypeface(Typeface.DEFAULT_BOLD);
+                  title.setTextColor(colorText);
+                  root.addView(title);
+
+                  modelView = new TextView(this);
+                  modelView.setTextSize(17);
+                  modelView.setTextColor(colorAccent);
+                  modelView.setPadding(0, dp(4), 0, 0);
+                  root.addView(modelView);
+
+                  statusView = new TextView(this);
+                  statusView.setTextSize(14);
+                  statusView.setTextColor(colorMuted);
+                  statusView.setPadding(0, dp(4), 0, dp(16));
+                  root.addView(statusView);
+
+                  LinearLayout row = new LinearLayout(this);
+                  row.setOrientation(LinearLayout.HORIZONTAL);
+                  leftCard = new PodCard("Чап (L)");
+                  rightCard = new PodCard("Ўнг (R)");
+                  LinearLayout.LayoutParams half = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                  half.setMargins(0, 0, dp(6), 0);
+                  row.addView(leftCard.view, half);
+                  LinearLayout.LayoutParams half2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                  half2.setMargins(dp(6), 0, 0, 0);
+                  row.addView(rightCard.view, half2);
+                  root.addView(row);
+
+                  caseCard = new PodCard("Кейс");
+                  LinearLayout.LayoutParams full = new LinearLayout.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                  full.setMargins(0, dp(12), 0, 0);
+                  root.addView(caseCard.view, full);
+
+                  hintView = new TextView(this);
+                  hintView.setTextSize(15);
+                  hintView.setTextColor(colorText);
+                  hintView.setPadding(dp(4), dp(20), dp(4), 0);
+                  hintView.setLineSpacing(0, 1.15f);
+                  root.addView(hintView);
+
+                  actionButton = new Button(this);
+                  actionButton.setAllCaps(false);
+                  actionButton.setTextSize(16);
+                  actionButton.setTextColor(0xFFFFFFFF);
+                  GradientDrawable btnBg = new GradientDrawable();
+                  btnBg.setColor(colorAccent);
+                  btnBg.setCornerRadius(dp(14));
+                  actionButton.setBackground(btnBg);
+                  LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+                  btnLp.setMargins(0, dp(16), 0, 0);
+                  root.addView(actionButton, btnLp);
+                  actionButton.setVisibility(View.GONE);
+
+                  TextView footer = new TextView(this);
+                  footer.setText("AirPods зарядни 10% қадам билан узатади, шунинг учун кўрсаткич 10, 20, 30… кўринишида бўлади. "
+                          + "Илова интернетга уланмайди ва ҳеч қандай маълумот юбормайди.");
+                  footer.setTextSize(12);
+                  footer.setTextColor(colorMuted);
+                  footer.setPadding(dp(4), dp(28), dp(4), 0);
+                  root.addView(footer);
+
+                  setContentView(scroll);
+              }
+
+              private void setButton(String text, final Runnable action) {
+                  if (text == null) {
+                      actionButton.setVisibility(View.GONE);
+                      actionButton.setOnClickListener(null);
+                  } else {
+                      actionButton.setText(text);
+                      actionButton.setVisibility(View.VISIBLE);
+                      actionButton.setOnClickListener(v -> action.run());
+                  }
+              }
+
+              private static int levelColor(int percent) {
+                  if (percent <= 20) return 0xFFFF3B30;  // қизил
+                  if (percent <= 40) return 0xFFFF9F0A;  // тўқ сариқ
+                  return 0xFF34C759;                     // яшил
+              }
+
+              /** Битта карточка: номи, катта фоиз, заряд чизиғи ва «зарядланмоқда» белгиси. */
+              private final class PodCard {
+                  final LinearLayout view;
+                  final TextView label;
+                  final TextView percent;
+                  final ProgressBar bar;
+                  final TextView sub;
+
+                  PodCard(String name) {
+                      view = new LinearLayout(MainActivity.this);
+                      view.setOrientation(LinearLayout.VERTICAL);
+                      view.setPadding(dp(16), dp(16), dp(16), dp(16));
+                      GradientDrawable bg = new GradientDrawable();
+                      bg.setColor(colorCard);
+                      bg.setCornerRadius(dp(20));
+                      view.setBackground(bg);
+
+                      label = new TextView(MainActivity.this);
+                      label.setText(name);
+                      label.setTextSize(15);
+                      label.setTextColor(colorMuted);
+                      view.addView(label);
+
+                      percent = new TextView(MainActivity.this);
+                      percent.setTextSize(40);
+                      percent.setTypeface(Typeface.DEFAULT_BOLD);
+                      percent.setTextColor(colorText);
+                      percent.setGravity(Gravity.START);
+                      view.addView(percent);
+
+                      bar = new ProgressBar(MainActivity.this, null, android.R.attr.progressBarStyleHorizontal);
+                      bar.setMax(100);
+                      bar.setIndeterminate(false);
+                      LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
+                              ViewGroup.LayoutParams.MATCH_PARENT, dp(10));
+                      barLp.setMargins(0, dp(6), 0, dp(6));
+                      view.addView(bar, barLp);
+
+                      sub = new TextView(MainActivity.this);
+                      sub.setTextSize(13);
+                      sub.setTextColor(colorMuted);
+                      view.addView(sub);
+
+                      setUnknown(colorMuted);
+                  }
+
+                  void setUnknown(int color) {
+                      percent.setText("—");
+                      percent.setTextColor(color);
+                      bar.setProgress(0);
+                      bar.setProgressTintList(ColorStateList.valueOf(color));
+                      bar.setProgressBackgroundTintList(ColorStateList.valueOf(color));
+                      sub.setText(" ");
+                  }
+
+                  /** level: 0..10 (×10%), 15 — маълумот йўқ. */
+                  void setValue(int level, boolean charging, boolean isCase) {
+                      if (level < 0 || level > 10) {
+                          setUnknown(colorMuted);
+                          sub.setText(isCase ? "Маълумот йўқ (иккала қулоқчин кейсдан ташқарида)" : "Топилмади");
+                          return;
+                      }
+                      int p = level * 10;
+                      int c = levelColor(p);
+                      percent.setText(p + "%");
+                      percent.setTextColor(colorText);
+                      bar.setProgress(p);
+                      bar.setProgressTintList(ColorStateList.valueOf(c));
+                      bar.setProgressBackgroundTintList(ColorStateList.valueOf(colorMuted));
+                      sub.setText(charging ? "⚡ Зарядланмоқда" : " ");
+                      sub.setTextColor(charging ? 0xFF34C759 : colorMuted);
+                  }
+              }
+
+              // ------------------------------------------------------------------ data
+
+              /** Apple proximity pairing хабаридан ўқилган маълумот. */
+              static final class Reading {
+                  long time;
+                  int rssi;
+                  int model;
+                  int left, right, caseBattery;          // 0..10 ёки 15 (номаълум)
+                  boolean chargingLeft, chargingRight, chargingCase;
+
+                  /**
+                   * Байтлар (Apple manufacturer data, 0x004C дан кейин):
+                   * [0]=0x07 тури, [1]=узунлик, [2]=префикс, [3..4]=модел,
+                   * [5]=ҳолат (0x20 бити — қулоқчинлар ўрни алмашганми),
+                   * [6]=чап/ўнг заряд (иккита 4 битли қиймат),
+                   * [7]=юқори 4 бит: зарядланиш белгилари, пастки 4 бит: кейс заряди.
+                   */
+                  static Reading parse(byte[] d, int rssi, long time) {
+                      if (d == null || d.length < 8 || (d[0] & 0xFF) != TYPE_PROXIMITY_PAIRING) return null;
+                      Reading r = new Reading();
+                      r.time = time;
+                      r.rssi = rssi;
+                      r.model = ((d[3] & 0xFF) << 8) | (d[4] & 0xFF);
+
+                      int status = d[5] & 0xFF;
+                      boolean flipped = (status & 0x20) == 0;
+
+                      int pods = d[6] & 0xFF;
+                      int hi = (pods >> 4) & 0x0F;
+                      int lo = pods & 0x0F;
+                      r.left = flipped ? hi : lo;
+                      r.right = flipped ? lo : hi;
+
+                      int b7 = d[7] & 0xFF;
+                      int charge = (b7 >> 4) & 0x0F;
+                      r.caseBattery = b7 & 0x0F;
+                      r.chargingLeft = (charge & (flipped ? 0x02 : 0x01)) != 0;
+                      r.chargingRight = (charge & (flipped ? 0x01 : 0x02)) != 0;
+                      r.chargingCase = (charge & 0x04) != 0;
+
+                      // Бузилган пакетлар: ҳамма қиймат номаълум бўлса — ташлаб юборамиз.
+                      if (r.left > 10 && r.right > 10 && r.caseBattery > 10) return null;
+                      return r;
+                  }
+              }
+          }
+          __EOF__
+
+      - name: APK yigish
+        run: |
+          gradle --no-daemon assembleDebug
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk out/AirPods-zaryadi.apk
+
+      - name: APK ni yuklab olish uchun saqlash
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirPods-zaryadi-apk
+          path: out/AirPods-zaryadi.apk
